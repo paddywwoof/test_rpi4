@@ -119,7 +119,7 @@ for i in range(30):
   opengles.glEnableVertexAttribArray(attr_vert)
   opengles.glVertexAttribPointer(attr_rgb, 3, GL_FLOAT, 0, 24, 12)
   opengles.glEnableVertexAttribArray(attr_rgb)
-  opengles.glDrawElements(DRAW_METHODS[i%3], 9, GL_UNSIGNED_SHORT, 0)
+  opengles.glDrawElements(DRAW_METHODS[i%3], 6, GL_UNSIGNED_SHORT, 0)
   sdl2.SDL_GL_SwapWindow(window)
 
 sdl2.SDL_GL_DeleteContext(context)
