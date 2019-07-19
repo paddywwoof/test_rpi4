@@ -11,8 +11,8 @@ from test_rpi4_constants import *
 
 W, H = 500, 300
 DRAW_METHODS = [GL_TRIANGLES, GL_POINTS, GL_LINE_LOOP, GL_LINE_STRIP, GL_LINES]
-USE_ES = True # change this to see if it make any difference
-USE_DRAWARRAYS = True # --"--
+USE_ES = False # change this to see if it make any difference
+USE_DRAWARRAYS = False # --"--
 
 if not USE_ES:
   opengles = CDLL(find_library('GL'))
@@ -22,6 +22,11 @@ openegl = CDLL(find_library('EGL')) # otherwise missing symbol on pi loading egl
 
 set_gles_function_args(opengles)
 set_egl_function_args(openegl)
+
+def chk_error():
+  err = opengles.glGetError()
+  if err != 0:
+    print('error {}'.format(err))
 
 ''' SDL2 window stuff
 '''
@@ -36,9 +41,11 @@ window = sdl2.SDL_CreateWindow(b'hello world',
                               flags)
 assert window, sdl2.SDL_GetError()
 # Force OpenGL 2.1 'core' context. Must set *before* creating GL context!
-sdl2.video.SDL_GL_SetAttribute(sdl2.video.SDL_GL_CONTEXT_MAJOR_VERSION, 2)
-sdl2.video.SDL_GL_SetAttribute(sdl2.video.SDL_GL_CONTEXT_MINOR_VERSION, 1)
-sdl2.video.SDL_GL_SetAttribute(sdl2.video.SDL_GL_CONTEXT_PROFILE_MASK, sdl2.video.SDL_GL_CONTEXT_PROFILE_CORE)
+sdl2.SDL_GL_SetAttribute(sdl2.SDL_GL_CONTEXT_MAJOR_VERSION, 2)
+sdl2.SDL_GL_SetAttribute(sdl2.SDL_GL_CONTEXT_MINOR_VERSION, 1)
+sdl2.SDL_GL_SetAttribute(sdl2.SDL_GL_CONTEXT_PROFILE_MASK, 
+      sdl2.SDL_GL_CONTEXT_PROFILE_ES if USE_ES else
+      sdl2.SDL_GL_CONTEXT_PROFILE_COMPATIBILITY)
 context = sdl2.SDL_GL_CreateContext(window)
 
 ''' gl stuff
@@ -51,9 +58,10 @@ opengles.glBindFramebuffer(GL_FRAMEBUFFER, 0)
 #Setup default hints
 opengles.glEnable(GL_CULL_FACE)
 opengles.glEnable(GL_DEPTH_TEST)
-opengles.glEnable(GL_PROGRAM_POINT_SIZE)
+#opengles.glEnable(GL_PROGRAM_POINT_SIZE)
 opengles.glDepthFunc(GL_LESS)
-opengles.glDepthMask(1)
+
+opengles.glDepthMask(24)
 opengles.glCullFace(GL_FRONT)
 opengles.glHint(GL_GENERATE_MIPMAP_HINT, GL_NICEST)
 opengles.glBlendFuncSeparate(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA, 
@@ -63,12 +71,12 @@ if not USE_ES:
   opengles.glPointSize(c_float(20.0))
 opengles.glLineWidth(c_float(2.0))
 
-if not USE_DRAWARRAYS:
+if not USE_DRAWARRAYS: # vertex each corner of quad
   array_buffer = np.array([-0.5, -0.5, 0.5, 1.0, 0.0, 0.0, # vertex x,y,z,r,g,b
                           -0.5, 0.5, 0.5, 0.0, 1.0, 0.0,
                           0.5, 0.5, 0.5, 0.0, 0.0, 1.0,
                           0.5, -0.5, 0.5, 1.0, 1.0, 1.0], dtype="float32")
-else:
+else: # vertex each corner of two triangles
   array_buffer = np.array([-0.5, -0.5, 0.5, 1.0, 0.0, 0.0, # vertex x,y,z,r,g,b
                           -0.5, 0.5, 0.5, 0.0, 1.0, 0.0,
                           0.5, 0.5, 0.5, 0.0, 0.0, 1.0,
@@ -93,39 +101,36 @@ opengles.glBufferData(GL_ELEMENT_ARRAY_BUFFER,
                       GL_STATIC_DRAW)
 
 program = opengles.glCreateProgram()
-vsrc = b'''attribute vec3 vert;
-attribute vec3 rgb;
-varying vec4 colour;
-void main(void) {
-  colour = vec4(rgb, 1.0);
-  gl_Position = vec4(vert, 1.0);
-  gl_PointSize = 20.0;
-} 
-'''
-vshader = opengles.glCreateShader(GL_VERTEX_SHADER)
-src_len = c_int(len(vsrc))
-opengles.glShaderSource(vshader, 1, c_char_p(vsrc), byref(src_len))
-opengles.glCompileShader(vshader)
-opengles.glAttachShader(program, vshader)
-
-fsrc = b'''varying vec4 colour;
-void main(void) {
-  gl_FragColor = colour;
-}
-'''
-fshader = opengles.glCreateShader(GL_FRAGMENT_SHADER)
-src_len = c_int(len(fsrc))
-opengles.glShaderSource(fshader, 1, c_char_p(fsrc), byref(src_len))
-opengles.glCompileShader(fshader)
-opengles.glAttachShader(program, fshader)
+for (sh_type, src) in ((GL_VERTEX_SHADER,
+b'''attribute vec3 vert;
+    attribute vec3 rgb;
+    varying vec4 colour;
+    void main(void) {
+      colour = vec4(rgb, 1.0);
+      gl_Position = vec4(vert, 1.0);
+      gl_PointSize = 20.0;
+    } 
+  '''), (GL_FRAGMENT_SHADER,
+  b'''varying vec4 colour;
+      void main(void) {
+        gl_FragColor = colour;
+      }
+  ''')):
+  shader = opengles.glCreateShader(sh_type)
+  src_len = c_int(len(src))
+  opengles.glShaderSource(shader, 1, c_char_p(src), byref(src_len))
+  opengles.glCompileShader(shader)
+  opengles.glAttachShader(program, shader)
+  
 
 opengles.glLinkProgram(program)
+chk_error()
 opengles.glUseProgram(program)
 
 attr_vert = opengles.glGetAttribLocation(program, b'vert')
 attr_rgb = opengles.glGetAttribLocation(program, b'rgb')
 
-for i in range(20):
+for i in range(10):
   time.sleep(0.5)
   opengles.glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT)
   opengles.glBindBuffer(GL_ARRAY_BUFFER, vbuf)
@@ -135,13 +140,11 @@ for i in range(20):
   opengles.glVertexAttribPointer(attr_rgb, 3, GL_FLOAT, 0, 24, 12)
   opengles.glEnableVertexAttribArray(attr_rgb)
   if not USE_DRAWARRAYS:
-    opengles.glDrawElements(DRAW_METHODS[i%5], 6, GL_UNSIGNED_SHORT, 0)
+    opengles.glDrawElements(DRAW_METHODS[i%5], 6, GL_UNSIGNED_SHORT, None)
   else:
     opengles.glDrawArrays(DRAW_METHODS[i%5], 0, 6)
   sdl2.SDL_GL_SwapWindow(window)
-  err = opengles.glGetError()
-  if err != 0:
-    print('error {}'.format(err))
+  sdl2.SDL_PollEvent(None) # keep the OS happy that this isn't unresponsive app
 
 sdl2.SDL_GL_DeleteContext(context)
 sdl2.SDL_DestroyWindow(window)
