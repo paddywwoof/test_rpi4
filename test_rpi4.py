@@ -10,7 +10,7 @@ import sdl2.video
 from test_rpi4_constants import *
 
 W, H = 500, 300
-DRAW_METHODS = [GL_TRIANGLES, GL_POINTS, GL_LINE_LOOP]
+DRAW_METHODS = [GL_TRIANGLES, GL_POINTS, GL_LINE_LOOP, GL_LINE_STRIP, GL_LINES]
 
 opengles = CDLL(find_library('GL'))
 #opengles = CDLL(find_library('GLESv2')) # has to happen first
@@ -110,8 +110,8 @@ opengles.glUseProgram(program)
 attr_vert = opengles.glGetAttribLocation(program, b'vert')
 attr_rgb = opengles.glGetAttribLocation(program, b'rgb')
 
-for i in range(30):
-  time.sleep(0.25)
+for i in range(20):
+  time.sleep(0.5)
   opengles.glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT)
   opengles.glBindBuffer(GL_ARRAY_BUFFER, vbuf)
   opengles.glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, ebuf)
@@ -119,7 +119,7 @@ for i in range(30):
   opengles.glEnableVertexAttribArray(attr_vert)
   opengles.glVertexAttribPointer(attr_rgb, 3, GL_FLOAT, 0, 24, 12)
   opengles.glEnableVertexAttribArray(attr_rgb)
-  opengles.glDrawElements(DRAW_METHODS[i%3], 6, GL_UNSIGNED_SHORT, 0)
+  opengles.glDrawElements(DRAW_METHODS[i%5], 6, GL_UNSIGNED_SHORT, 0)
   sdl2.SDL_GL_SwapWindow(window)
 
 sdl2.SDL_GL_DeleteContext(context)
