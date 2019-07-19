@@ -11,7 +11,8 @@ from test_rpi4_constants import *
 
 W, H = 500, 300
 DRAW_METHODS = [GL_TRIANGLES, GL_POINTS, GL_LINE_LOOP, GL_LINE_STRIP, GL_LINES]
-USE_ES = False
+USE_ES = True # change this to see if it make any difference
+USE_DRAWARRAYS = True # --"--
 
 if not USE_ES:
   opengles = CDLL(find_library('GL'))
@@ -62,10 +63,18 @@ if not USE_ES:
   opengles.glPointSize(c_float(20.0))
 opengles.glLineWidth(c_float(2.0))
 
-array_buffer = np.array([-0.5, -0.5, 0.5, 1.0, 0.0, 0.0, # vertex x,y,z,r,g,b
-                         -0.5, 0.5, 0.5, 0.0, 1.0, 0.0,
-                         0.5, 0.5, 0.5, 0.0, 0.0, 1.0,
-                         0.5, -0.5, 0.5, 1.0, 1.0, 1.0], dtype="float32")
+if not USE_DRAWARRAYS:
+  array_buffer = np.array([-0.5, -0.5, 0.5, 1.0, 0.0, 0.0, # vertex x,y,z,r,g,b
+                          -0.5, 0.5, 0.5, 0.0, 1.0, 0.0,
+                          0.5, 0.5, 0.5, 0.0, 0.0, 1.0,
+                          0.5, -0.5, 0.5, 1.0, 1.0, 1.0], dtype="float32")
+else:
+  array_buffer = np.array([-0.5, -0.5, 0.5, 1.0, 0.0, 0.0, # vertex x,y,z,r,g,b
+                          -0.5, 0.5, 0.5, 0.0, 1.0, 0.0,
+                          0.5, 0.5, 0.5, 0.0, 0.0, 1.0,
+                          -0.5, -0.5, 0.5, 1.0, 0.0, 0.0,
+                          0.5, 0.5, 0.5, 0.0, 0.0, 1.0,
+                          0.5, -0.5, 0.5, 1.0, 1.0, 1.0], dtype="float32")
 vbuf = c_uint()
 opengles.glGenBuffers(1, byref(vbuf))
 opengles.glBindBuffer(GL_ARRAY_BUFFER, vbuf)
@@ -125,8 +134,14 @@ for i in range(20):
   opengles.glEnableVertexAttribArray(attr_vert)
   opengles.glVertexAttribPointer(attr_rgb, 3, GL_FLOAT, 0, 24, 12)
   opengles.glEnableVertexAttribArray(attr_rgb)
-  opengles.glDrawElements(DRAW_METHODS[i%5], 6, GL_UNSIGNED_SHORT, 0)
+  if not USE_DRAWARRAYS:
+    opengles.glDrawElements(DRAW_METHODS[i%5], 6, GL_UNSIGNED_SHORT, 0)
+  else:
+    opengles.glDrawArrays(DRAW_METHODS[i%5], 0, 6)
   sdl2.SDL_GL_SwapWindow(window)
+  err = opengles.glGetError()
+  if err != 0:
+    print('error {}'.format(err))
 
 sdl2.SDL_GL_DeleteContext(context)
 sdl2.SDL_DestroyWindow(window)
