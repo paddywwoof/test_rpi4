@@ -11,9 +11,12 @@ from test_rpi4_constants import *
 
 W, H = 500, 300
 DRAW_METHODS = [GL_TRIANGLES, GL_POINTS, GL_LINE_LOOP, GL_LINE_STRIP, GL_LINES]
+USE_ES = False
 
-opengles = CDLL(find_library('GL'))
-#opengles = CDLL(find_library('GLESv2')) # has to happen first
+if not USE_ES:
+  opengles = CDLL(find_library('GL'))
+else:
+  opengles = CDLL(find_library('GLESv2')) # has to happen first
 openegl = CDLL(find_library('EGL')) # otherwise missing symbol on pi loading egl
 
 set_gles_function_args(opengles)
@@ -55,6 +58,9 @@ opengles.glHint(GL_GENERATE_MIPMAP_HINT, GL_NICEST)
 opengles.glBlendFuncSeparate(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA, 
                                         1, GL_ONE_MINUS_SRC_ALPHA)
 opengles.glColorMask(1, 1, 1, 0)
+if not USE_ES:
+  opengles.glPointSize(c_float(20.0))
+opengles.glLineWidth(c_float(2.0))
 
 array_buffer = np.array([-0.5, -0.5, 0.5, 1.0, 0.0, 0.0, # vertex x,y,z,r,g,b
                          -0.5, 0.5, 0.5, 0.0, 1.0, 0.0,
