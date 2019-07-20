@@ -4,8 +4,8 @@ import numpy as np
 import time
 
 import sdl2
-import sdl2.ext
-import sdl2.video
+#import sdl2.ext
+#import sdl2.video
 
 from test_rpi4_constants import *
 
@@ -44,6 +44,8 @@ sdl2.SDL_GL_SetAttribute(sdl2.SDL_GL_CONTEXT_MINOR_VERSION, 1)
 sdl2.SDL_GL_SetAttribute(sdl2.SDL_GL_CONTEXT_PROFILE_MASK, 
       sdl2.SDL_GL_CONTEXT_PROFILE_ES if USE_ES else
       sdl2.SDL_GL_CONTEXT_PROFILE_COMPATIBILITY)
+sdl2.SDL_GL_SetAttribute(sdl2.SDL_GL_DOUBLEBUFFER, 1)
+sdl2.SDL_GL_SetAttribute(sdl2.SDL_GL_DEPTH_SIZE, 24)
 context = sdl2.SDL_GL_CreateContext(window)
 
 ''' gl stuff

@@ -20,7 +20,12 @@
 # LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 # THE SOFTWARE.
-
+''' modified quite a bit by Paddy Gaunt 19Jul2019. See
+ https://gist.github.com/hurricanerix/3be8221128d943ae2827 for original
+ 
+ any key toggle lines, triangles, points
+ mouse click toggle glDrawElements, glDrawArrays
+'''
 import ctypes
 import numpy as np
 import sys
@@ -54,10 +59,11 @@ void main()
 
 VERTICES = np.array([0.0, 0.0, 0.0, 1.0, 0.0, 0.0,
                      1.0, 0.0, 0.0, 0.0, 1.0, 0.0,
-                     1.0, 1.0, 0.0, 0.0, 0.0, 1.0,
-                     0.0, 1.0, 0.0, 1.0, 1.0, 1.0, 
-                     0.0, 0.0, 0.0, 1.0, 1.0, 0.0,
-                     1.0, 1.0, 0.0, 1.0, 0.0, 1.0], dtype=np.float32)
+                     1.0, 1.0, 0.0, 0.0, 0.0, 1.0, # subtle diff c.f. vert[5] to see array v. elements
+                     0.0, 1.0, 0.0, 0.5, 0.5, 0.5, 
+                     0.0, 0.0, 0.0, 1.0, 0.0, 0.0,
+                     1.0, 1.0, 0.0, 0.1, 0.1, 0.9], dtype=np.float32)
+
 ELEMENTS = np.array([0, 1, 2, 3, 0, 2], dtype=np.int16)
 
 def get_4x4_transform(scale_x, scale_y, trans_x, trans_y, trans_z):
@@ -144,8 +150,6 @@ if __name__ == "__main__":
         uniform_locs[name] = gl.glGetUniformLocation(shader, name)
 
     # Load Object
-    #vao = gl.glGenVertexArrays(1)
-    #gl.glBindVertexArray(vao)
     vertex_buffer = gl.glGenBuffers(1)
     gl.glBindBuffer(gl.GL_ARRAY_BUFFER, vertex_buffer)
     gl.glBufferData(gl.GL_ARRAY_BUFFER, VERTICES.nbytes, VERTICES,
@@ -168,6 +172,7 @@ if __name__ == "__main__":
     object_h = 200
     i = 0
     d_type = [gl.GL_POINTS, gl.GL_TRIANGLES, gl.GL_LINES, gl.GL_LINE_LOOP]
+    use_arrays = False
     while running:
         while sdl2.SDL_PollEvent(ctypes.byref(event)) != 0:
             if event.type == sdl2.SDL_QUIT:
@@ -187,7 +192,7 @@ if __name__ == "__main__":
                 gl.glLineWidth(object_h * 0.05)
             if (event.type == sdl2.SDL_MOUSEBUTTONDOWN):
                 #print("SDL_MOUSEBUTTONDOWN")
-                pass
+                use_arrays = not use_arrays
 
         # Update model_matrix
         object_x = WINDOW_WIDTH / 2 - object_w / 2
@@ -206,7 +211,6 @@ if __name__ == "__main__":
         gl.glUseProgram(shader)
     
         # Draw object
-        #gl.glBindVertexArray(vao)
         gl.glBindBuffer(gl.GL_ARRAY_BUFFER, vertex_buffer)
         gl.glBindBuffer(gl.GL_ELEMENT_ARRAY_BUFFER, element_buffer)
         gl.glEnableVertexAttribArray(attrib_locs[b'mc_vertex'])
@@ -217,11 +221,12 @@ if __name__ == "__main__":
                               view_matrix)
         gl.glUniformMatrix4fv(uniform_locs[b'proj_matrix'], 1, gl.GL_TRUE,
                               proj_matrix)
-        #gl.glDrawArrays(d_type[i], 0, int(len(VERTICES) / 6.0))
-        gl.glDrawElements(d_type[i], len(ELEMENTS), gl.GL_UNSIGNED_SHORT, None)
+        if use_arrays: # toggle with mouse click. Any key change points, triangles, lines
+            gl.glDrawArrays(d_type[i], 0, int(len(VERTICES) / 6.0))
+        else:
+            gl.glDrawElements(d_type[i], len(ELEMENTS), gl.GL_UNSIGNED_SHORT, None)
         gl.glBindBuffer(gl.GL_ELEMENT_ARRAY_BUFFER, 0)
         gl.glBindBuffer(gl.GL_ARRAY_BUFFER, 0)
-        #gl.glBindVertexArray(0)
 
         # Stop Rendering
         gl.glUseProgram(0)
