@@ -18,10 +18,8 @@ if not USE_ES:
   opengles = CDLL(find_library('GL'))
 else:
   opengles = CDLL(find_library('GLESv2')) # has to happen first
-openegl = CDLL(find_library('EGL')) # otherwise missing symbol on pi loading egl
 
 set_gles_function_args(opengles)
-set_egl_function_args(openegl)
 
 def chk_error():
   err = opengles.glGetError()
@@ -50,10 +48,16 @@ context = sdl2.SDL_GL_CreateContext(window)
 
 ''' gl stuff
 '''
-opengles.glViewport(0, 0, W, H)
-opengles.glDepthRangef(c_float(0.0), c_float(1.0))
-opengles.glClearColor (c_float(0.3), c_float(0.3), c_float(0.7), c_float(1.0))
-opengles.glBindFramebuffer(GL_FRAMEBUFFER, 0)
+opengles.glViewport(GLint(0), GLint(0), GLsizei(W), GLsizei(H))
+if USE_ES:
+  opengles.glDepthRangef(GLclampf(0.0), GLclampf(1.0))
+  opengles.glBindFramebuffer(GL_FRAMEBUFFER, 0)
+else:
+  opengles.glDepthRange(GLclampd(0.0), GLclampd(1.0))
+  opengles.glPointSize(GLfloat(20.0))
+  opengles.glEnableClientState(GL_VERTEX_ARRAY)
+opengles.glClearColor (GLclampf(0.3), GLclampf(0.3), GLclampf(0.7), GLclampf(1.0))
+opengles.glLineWidth(GLfloat(2.0))
 
 #Setup default hints
 opengles.glEnable(GL_CULL_FACE)
@@ -61,15 +65,12 @@ opengles.glEnable(GL_DEPTH_TEST)
 #opengles.glEnable(GL_PROGRAM_POINT_SIZE)
 opengles.glDepthFunc(GL_LESS)
 
-opengles.glDepthMask(24)
+opengles.glDepthMask(True)
 opengles.glCullFace(GL_FRONT)
 opengles.glHint(GL_GENERATE_MIPMAP_HINT, GL_NICEST)
 opengles.glBlendFuncSeparate(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA, 
-                                        1, GL_ONE_MINUS_SRC_ALPHA)
-opengles.glColorMask(1, 1, 1, 0)
-if not USE_ES:
-  opengles.glPointSize(c_float(20.0))
-opengles.glLineWidth(c_float(2.0))
+                              GLenum(1), GL_ONE_MINUS_SRC_ALPHA)
+opengles.glColorMask(True, True, True, False)
 
 if not USE_DRAWARRAYS: # vertex each corner of quad
   array_buffer = np.array([-0.5, -0.5, 0.5, 1.0, 0.0, 0.0, # vertex x,y,z,r,g,b
@@ -117,7 +118,7 @@ b'''attribute vec3 vert;
       }
   ''')):
   shader = opengles.glCreateShader(sh_type)
-  src_len = c_int(len(src))
+  src_len = GLint(len(src))
   opengles.glShaderSource(shader, 1, c_char_p(src), byref(src_len))
   opengles.glCompileShader(shader)
   opengles.glAttachShader(program, shader)
@@ -131,7 +132,7 @@ attr_vert = opengles.glGetAttribLocation(program, b'vert')
 attr_rgb = opengles.glGetAttribLocation(program, b'rgb')
 
 for i in range(10):
-  time.sleep(0.5)
+  time.sleep(0.2)
   opengles.glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT)
   opengles.glBindBuffer(GL_ARRAY_BUFFER, vbuf)
   opengles.glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, ebuf)
@@ -140,7 +141,7 @@ for i in range(10):
   opengles.glVertexAttribPointer(attr_rgb, 3, GL_FLOAT, 0, 24, 12)
   opengles.glEnableVertexAttribArray(attr_rgb)
   if not USE_DRAWARRAYS:
-    opengles.glDrawElements(DRAW_METHODS[i%5], 6, GL_UNSIGNED_SHORT, None)
+    opengles.glDrawElements(DRAW_METHODS[i%5], 6, GL_UNSIGNED_SHORT, 0)
   else:
     opengles.glDrawArrays(DRAW_METHODS[i%5], 0, 6)
   sdl2.SDL_GL_SwapWindow(window)
